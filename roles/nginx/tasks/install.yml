@@ -1,0 +1,89 @@
+- name: 安装依赖
+  yum:
+    name:
+      - ca-certificates
+      - gcc
+      - gcc-c++
+      - glibc
+      - glibc-common
+      - make
+      - perl-core
+      - tar
+      - unzip
+      - wget
+      - zlib-devel
+    update_cache: true
+
+- name: 下载nginx源码包
+  get_url:
+    url: "{{ nginx_source_url }}"
+    dest: /tmp/nginx-{{ nginx_version }}.tar.gz
+    mode: '0600'
+  register: nginx_source
+
+- name: 解压
+  unarchive:
+    copy: false
+    src: "{{ nginx_source.dest }}"
+    dest: /tmp
+    mode: '0755'
+
+- name: 检查Nginx安装
+  stat:
+    path: /usr/sbin/nginx
+    follow: true
+  register: nginx_result
+
+- name: 添加组
+  group: name=nginx
+
+- name: 添加用户
+  user:
+    name: nginx
+    group: nginx
+    home: /var/cache/nginx
+    shell: /sbin/nologin
+
+- name: 编译安装Nginx
+  when: not nginx_result['stat']['exists'] | bool
+  command:
+    chdir: /tmp/nginx-{{ nginx_version }}
+    creates: /tmp/makefile
+    cmd: |
+      ./configure
+      --conf-path=/etc/nginx/nginx.conf
+      --error-log-path=/var/log/nginx/error.log
+      --http-log-path=/var/log/nginx/access.log
+      --lock-path=/var/lock/nginx.lock
+      --modules-path=/usr/lib/nginx/modules
+      --prefix=/usr
+      --pid-path=/var/run/nginx.pid
+      --user=nginx
+      --with-stream
+  register: nginx_configure
+
+- name: Make NGINX
+  community.general.make:
+    chdir: /tmp/nginx-{{ nginx_version }}
+
+- name: Install NGINX
+  community.general.make:
+    chdir: /tmp/nginx-{{ nginx_version }}
+    target: install
+
+- name: systemd文件
+  copy:
+    src: nginx.service
+    dest: /lib/systemd/system/nginx.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: 开启nginx
+  systemd:
+    daemon_reload: true
+    name: nginx
+    state: restarted
+    enabled: true
+    
+
