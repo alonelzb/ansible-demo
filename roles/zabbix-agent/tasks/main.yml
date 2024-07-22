@@ -1,0 +1,32 @@
+---
+# tasks file for roles/zabbix-agent
+
+- name: 添加阿里云仓库
+  yum_repository:
+    name: zabbix
+    description: zabbix aliyun
+    file: zabbix.repo
+    baseurl: https://mirrors.aliyun.com/zabbix/zabbix/6.0/rhel/8/x86_64/
+    #gpgkey: https://mirrors.aliyun.com/zabbix/RPM-GPG-KEY-ZABBIX-08EFA7DD
+    gpgcheck: no
+
+- name: 安装zabbix-agent2
+  yum: name=zabbix-agent2
+
+- name: 修改配置server ip
+  lineinfile:
+    dest: /etc/zabbix/zabbix_agent2.conf
+    regexp: '^Server='
+    line: 'Server={{ zabbix_server }}'
+
+- name: 修改配置hostname
+  lineinfile:
+    dest: /etc/zabbix/zabbix_agent2.conf
+    regexp: '^Hostname='
+    line: 'Hostname={{ ansible_hostname }}'
+
+- name: 启动zabbix-agent2
+  systemd:
+    name: zabbix-agent2
+    state: started
+    enabled: true

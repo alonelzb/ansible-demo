@@ -1,0 +1,4 @@
+---
+# vars file for roles/zabbix-agent
+
+zabbix_server: 10.0.0.30
